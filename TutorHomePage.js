@@ -105,7 +105,7 @@ const TutorHomePage = () => {
           <Ionicons name="calendar" size={28} color="#4A90E2" />
         </TouchableOpacity>
         <TouchableOpacity onPress={handleProfileClick}>
-          <Ionicons name="person" size={28} color="#3179ff" />
+          <Ionicons name="person" size={28} color="#A90E2" />
         </TouchableOpacity>
       </View>
     </View>
