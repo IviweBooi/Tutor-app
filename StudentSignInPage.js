@@ -70,7 +70,7 @@ const StudentSignInPage = () => {
         navigation.navigate("InformationPage", { email: email });
       })
       .catch((error) => {
-        console.error('Sign-up error:', error.code, error.message); // Log the detailed error for debugging
+        console.error('Sign-up error:', error.code, error.message);
         
         // Handle specific sign-up errors
         if (error.code === 'auth/email-already-in-use') {

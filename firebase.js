@@ -4,7 +4,6 @@ import { getFirestore } from "firebase/firestore";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { getAuth } from "firebase/auth";
 
-// For Firebase JS SDK v7.20.0 and later, measurementId is optional
 const firebaseConfig = {
   apiKey: "AIzaSyDP_cJL-Job1Zpdhkxmu91ZAlVvfDY_jJc",
   authDomain: "mytutorapp-4ba6e.firebaseapp.com",

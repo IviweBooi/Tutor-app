@@ -1,9 +1,96 @@
 import * as React from "react";
-import { StyleSheet, View, Image, Text, Pressable, SafeAreaView, TextInput, ScrollView } from "react-native";
+import { StyleSheet, View, Image, Text, Pressable, SafeAreaView, TextInput, ScrollView, Alert } from "react-native";
 import { useNavigation } from "@react-navigation/native";
+import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from "firebase/auth";
+import { auth } from './firebase'; // Import Firebase auth from firebase.js file
+import { useState } from 'react';
 
 const TutorSignInPage = () => {
   const navigation = useNavigation();
+
+  // State for email and password inputs
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+
+  const handleSignIn = () => {
+    const validEmailDomain = "@myuct.ac.za"; // UCT tutor domain
+    
+    // Ensure email is in correct format
+    if (!email.endsWith(validEmailDomain)) {
+      Alert.alert('Error', 'Please use your UCT tutor email ending with @myuct.ac.za');
+      return;
+    }
+    
+    // Ensure fields are not empty
+    if (email === '' || password === '') {
+      Alert.alert('Error', 'Please fill in all fields');
+      return;
+    }
+  
+    // Firebase sign-in with email and password
+    signInWithEmailAndPassword(auth, email, password)
+      .then((userCredential) => {
+        const user = userCredential.user;
+        console.log('Tutor signed in:', user);
+        navigation.navigate("TutorHomePage");
+      })
+      .catch((error) => {
+        console.error('Sign-in error:', error.code, error.message);
+        
+        switch (error.code) {
+          case 'auth/invalid-email':
+            Alert.alert('Error', 'Invalid email format.');
+            break;
+          case 'auth/wrong-password':
+            Alert.alert('Error', 'Incorrect password.');
+            break;
+          case 'auth/user-not-found':
+            Alert.alert('Error', 'No account found for this email. Please sign up first.');
+            break;
+          case 'auth/too-many-requests':
+            Alert.alert('Error', 'Too many unsuccessful attempts. Please try again later.');
+            break;
+          default:
+            Alert.alert('Error', 'Something went wrong, please try again.');
+            break;
+        }
+      });
+  };
+
+  const handleSignUp = () => {
+    const validEmailDomain = "@myuct.ac.za"; // UCT tutor domain
+    if (!email.endsWith(validEmailDomain)) {
+      Alert.alert('Error', 'Please use your UCT tutor email ending with @myuct.ac.za');
+      return;
+    }
+    if (email === '' || password === '') {
+      Alert.alert('Error', 'Please fill in all fields');
+      return;
+    }
+    if (password.length < 6) {
+      Alert.alert('Error', 'Password should be at least 6 characters long');
+      return;
+    }
+
+    createUserWithEmailAndPassword(auth, email, password)
+      .then((userCredential) => {
+        const user = userCredential.user;
+        console.log('Tutor signed up:', user);
+        Alert.alert('Success', 'Account created successfully! Please sign in.');
+        navigation.navigate("TutorSignUpPage", { email: email });
+      })
+      .catch((error) => {
+        console.error('Sign-up error:', error.code, error.message);
+        
+        if (error.code === 'auth/email-already-in-use') {
+          Alert.alert('Error', 'The email address is already in use.');
+        } else if (error.code === 'auth/invalid-email') {
+          Alert.alert('Error', 'Invalid email format.');
+        } else {
+          Alert.alert('Error', 'Something went wrong, please try again.');
+        }
+      });
+  };
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -17,28 +104,34 @@ const TutorSignInPage = () => {
           <Pressable
             style={styles.backButton}
             onPress={() => navigation.navigate("WelcomePage")}
-          >
+          > 
             <Image
               style={styles.vectorIcon}
               resizeMode="cover"
               source={require("./assets/vector.png")}
             />
           </Pressable>
-          <Text style={styles.signInTitle}>Sign In</Text>
+          
+          <Text style={styles.signInTitle}>Tutor Portal</Text>
           <Text style={styles.signInSubtitle}>
-            Sign in with your UCT email and Password.
+            Sign in or Sign up with your UCT email and password.
           </Text>
           <View style={styles.inputContainer}>
             <TextInput
               style={styles.input}
-              placeholder="UCT Student Email"
-              placeholderTextColor="#A0A0A0" 
+              placeholder="UCT Tutor Email"
+              placeholderTextColor="#A0A0A0"
+              value={email}
+              onChangeText={(text) => setEmail(text)}
+              keyboardType="email-address"
             />
             <TextInput
               style={styles.input}
               placeholder="Password"
-              placeholderTextColor="#A0A0A0" 
+              placeholderTextColor="#A0A0A0"
               secureTextEntry
+              value={password}
+              onChangeText={(text) => setPassword(text)}
             />
           </View>
           <Pressable style={styles.rememberMeContainer}>
@@ -50,11 +143,21 @@ const TutorSignInPage = () => {
           >
             <Text style={styles.forgotPasswordText}>Forgot your password?</Text>
           </Pressable>
+
+          {/* Sign In Button */}
           <Pressable
             style={styles.signInButton}
-            onPress={() => navigation.navigate("TutorHomePage")}
+            onPress={handleSignIn}
           >
             <Text style={styles.signInButtonText}>Sign In</Text>
+          </Pressable>
+
+          {/* Sign Up Button */}
+          <Pressable
+            style={styles.signUpButton}
+            onPress={handleSignUp}
+          >
+            <Text style={styles.signUpButtonText}>Sign Up</Text>
           </Pressable>
         </View>
       </ScrollView>
@@ -65,7 +168,7 @@ const TutorSignInPage = () => {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#0044CC', 
+    backgroundColor: '#0044CC',
   },
   scrollContainer: {
     flexGrow: 1,
@@ -92,14 +195,12 @@ const styles = StyleSheet.create({
   signInTitle: {
     fontSize: 36,
     color: '#FFFFFF',
-    fontFamily: 'System',
     fontWeight: '600',
     marginVertical: 20,
   },
   signInSubtitle: {
-    fontSize: 14, 
+    fontSize: 14,
     color: '#D3D3D3',
-    fontFamily: 'System', 
     textAlign: 'center',
     marginBottom: 20,
   },
@@ -111,8 +212,8 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     paddingHorizontal: 16,
     paddingVertical: 12,
-    fontSize: 14, 
-    color: '#FFFFFF', 
+    fontSize: 14,
+    color: '#FFFFFF',
     marginBottom: 12,
     borderColor: '#555555',
     borderWidth: 1,
@@ -123,8 +224,7 @@ const styles = StyleSheet.create({
   },
   rememberMe: {
     fontSize: 14,
-    color: '#D3D3D3', 
-    fontFamily: 'System',
+    color: '#D3D3D3',
   },
   forgotPassword: {
     marginVertical: 10,
@@ -132,11 +232,10 @@ const styles = StyleSheet.create({
   },
   forgotPasswordText: {
     fontSize: 14,
-    color: '#B0B0B0', 
-    fontFamily: 'System',
+    color: '#B0B0B0',
   },
   signInButton: {
-    backgroundColor: '#FF6600', 
+    backgroundColor: '#FF6600',
     borderRadius: 10,
     paddingVertical: 15,
     width: '100%',
@@ -146,7 +245,18 @@ const styles = StyleSheet.create({
   signInButtonText: {
     fontSize: 18,
     color: '#FFFFFF',
-    fontFamily: 'System',
+  },
+  signUpButton: {
+    backgroundColor: '#00CC44',
+    borderRadius: 10,
+    paddingVertical: 15,
+    width: '100%',
+    alignItems: 'center',
+    marginTop: 20,
+  },
+  signUpButtonText: {
+    fontSize: 18,
+    color: '#FFFFFF',
   },
 });
 
