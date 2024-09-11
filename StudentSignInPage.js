@@ -223,7 +223,7 @@ const styles = StyleSheet.create({
   },
   forgotPasswordText: {
     fontSize: 14,
-    color: '#B0B0B0',
+    color: '#0066B0',
   },
   signInButton: {
     backgroundColor: '#FF6600',
