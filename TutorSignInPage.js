@@ -1,72 +1,56 @@
-import * as React from "react";
-import { StyleSheet, View, Image, Text, Pressable, SafeAreaView, TextInput, ScrollView, Alert } from "react-native";
+import React, { useState } from 'react';
+import { StyleSheet, View, Image, Text, Pressable, SafeAreaView, TextInput, ScrollView, Alert } from 'react-native';
 import { useNavigation } from "@react-navigation/native";
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from "firebase/auth";
-import { auth } from './firebase'; // Import Firebase auth from firebase.js file
-import { useState } from 'react';
+import { auth } from './firebase'; // Import Firebase auth from your firebase.js
 
 const TutorSignInPage = () => {
   const navigation = useNavigation();
-
-  // State for email and password inputs
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
 
+  // Sign In Function
   const handleSignIn = () => {
-    const validEmailDomain = "@myuct.ac.za"; // UCT tutor domain
-    
-    // Ensure email is in correct format
+    const validEmailDomain = "@myuct.ac.za";
+
     if (!email.endsWith(validEmailDomain)) {
       Alert.alert('Error', 'Please use your UCT tutor email ending with @myuct.ac.za');
       return;
     }
-    
-    // Ensure fields are not empty
+
     if (email === '' || password === '') {
       Alert.alert('Error', 'Please fill in all fields');
       return;
     }
-  
-    // Firebase sign-in with email and password
+
     signInWithEmailAndPassword(auth, email, password)
       .then((userCredential) => {
         const user = userCredential.user;
         console.log('Tutor signed in:', user);
+
+        // Pass email to TutorPage
         navigation.navigate("TutorHomePage");
       })
       .catch((error) => {
         console.error('Sign-in error:', error.code, error.message);
-        
-        switch (error.code) {
-          case 'auth/invalid-email':
-            Alert.alert('Error', 'Invalid email format.');
-            break;
-          case 'auth/wrong-password':
-            Alert.alert('Error', 'Incorrect password.');
-            break;
-          case 'auth/user-not-found':
-            Alert.alert('Error', 'No account found for this email. Please sign up first.');
-            break;
-          case 'auth/too-many-requests':
-            Alert.alert('Error', 'Too many unsuccessful attempts. Please try again later.');
-            break;
-          default:
-            Alert.alert('Error', 'Something went wrong, please try again.');
-            break;
-        }
+        Alert.alert('Error', 'Failed to sign in. Please try again.');
       });
   };
 
+  // Sign Up Function
   const handleSignUp = () => {
-    const validEmailDomain = "@myuct.ac.za"; // UCT tutor domain
+    const validEmailDomain = "@myuct.ac.za";
+
     if (!email.endsWith(validEmailDomain)) {
       Alert.alert('Error', 'Please use your UCT tutor email ending with @myuct.ac.za');
       return;
     }
+
     if (email === '' || password === '') {
       Alert.alert('Error', 'Please fill in all fields');
       return;
     }
+
     if (password.length < 6) {
       Alert.alert('Error', 'Password should be at least 6 characters long');
       return;
@@ -76,19 +60,13 @@ const TutorSignInPage = () => {
       .then((userCredential) => {
         const user = userCredential.user;
         console.log('Tutor signed up:', user);
-        Alert.alert('Success', 'Account created successfully! Please sign in.');
+
+        // Navigate to TutorPage after successful sign-up
         navigation.navigate("TutorSignUpPage", { email: email });
       })
       .catch((error) => {
         console.error('Sign-up error:', error.code, error.message);
-        
-        if (error.code === 'auth/email-already-in-use') {
-          Alert.alert('Error', 'The email address is already in use.');
-        } else if (error.code === 'auth/invalid-email') {
-          Alert.alert('Error', 'Invalid email format.');
-        } else {
-          Alert.alert('Error', 'Something went wrong, please try again.');
-        }
+        Alert.alert('Error', 'Failed to sign up. Please try again.');
       });
   };
 
@@ -101,62 +79,32 @@ const TutorSignInPage = () => {
             resizeMode="cover"
             source={require("./assets/uct-logo.png")}
           />
-          <Pressable
-            style={styles.backButton}
-            onPress={() => navigation.navigate("WelcomePage")}
-          > 
-            <Image
-              style={styles.vectorIcon}
-              resizeMode="cover"
-              source={require("./assets/vector.png")}
-            />
-          </Pressable>
           
           <Text style={styles.signInTitle}>Tutor Portal</Text>
-          <Text style={styles.signInSubtitle}>
-            Sign in or Sign up with your UCT email and password.
-          </Text>
-          <View style={styles.inputContainer}>
-            <TextInput
-              style={styles.input}
-              placeholder="UCT Tutor Email"
-              placeholderTextColor="#A0A0A0"
-              value={email}
-              onChangeText={(text) => setEmail(text)}
-              keyboardType="email-address"
-            />
-            <TextInput
-              style={styles.input}
-              placeholder="Password"
-              placeholderTextColor="#A0A0A0"
-              secureTextEntry
-              value={password}
-              onChangeText={(text) => setPassword(text)}
-            />
-          </View>
-          <Pressable style={styles.rememberMeContainer}>
-            <Text style={styles.rememberMe}>Remember Me</Text>
-          </Pressable>
-          <Pressable
-            style={styles.forgotPassword}
-            onPress={() => navigation.navigate("ForgotPassword")}
-          >
-            <Text style={styles.forgotPasswordText}>Forgot your password?</Text>
-          </Pressable>
+          <TextInput
+            style={styles.input}
+            placeholder="UCT Tutor Email"
+            placeholderTextColor="#A0A0A0"
+            value={email}
+            onChangeText={(text) => setEmail(text)}
+            keyboardType="email-address"
+          />
+          <TextInput
+            style={styles.input}
+            placeholder="Password"
+            placeholderTextColor="#A0A0A0"
+            secureTextEntry
+            value={password}
+            onChangeText={(text) => setPassword(text)}
+          />
 
           {/* Sign In Button */}
-          <Pressable
-            style={styles.signInButton}
-            onPress={handleSignIn}
-          >
+          <Pressable style={styles.signInButton} onPress={handleSignIn}>
             <Text style={styles.signInButtonText}>Sign In</Text>
           </Pressable>
 
           {/* Sign Up Button */}
-          <Pressable
-            style={styles.signUpButton}
-            onPress={handleSignUp}
-          >
+          <Pressable style={styles.signUpButton} onPress={handleSignUp}>
             <Text style={styles.signUpButtonText}>Sign Up</Text>
           </Pressable>
         </View>
@@ -166,98 +114,16 @@ const TutorSignInPage = () => {
 };
 
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: '#0044CC',
-  },
-  scrollContainer: {
-    flexGrow: 1,
-    justifyContent: 'center',
-  },
-  container: {
-    paddingHorizontal: 16,
-    alignItems: 'center',
-  },
-  uctLogo: {
-    width: 106,
-    height: 106,
-    marginVertical: 20,
-  },
-  backButton: {
-    position: 'absolute',
-    top: 40,
-    left: 20,
-  },
-  vectorIcon: {
-    width: 11,
-    height: 11,
-  },
-  signInTitle: {
-    fontSize: 36,
-    color: '#FFFFFF',
-    fontWeight: '600',
-    marginVertical: 20,
-  },
-  signInSubtitle: {
-    fontSize: 14,
-    color: '#D3D3D3',
-    textAlign: 'center',
-    marginBottom: 20,
-  },
-  inputContainer: {
-    width: '100%',
-  },
-  input: {
-    backgroundColor: '#333333',
-    borderRadius: 10,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    fontSize: 14,
-    color: '#FFFFFF',
-    marginBottom: 12,
-    borderColor: '#555555',
-    borderWidth: 1,
-  },
-  rememberMeContainer: {
-    alignSelf: 'flex-start',
-    marginVertical: 10,
-  },
-  rememberMe: {
-    fontSize: 14,
-    color: '#D3D3D3',
-  },
-  forgotPassword: {
-    marginVertical: 10,
-    alignSelf: 'flex-start',
-  },
-  forgotPasswordText: {
-    fontSize: 14,
-    color: '#B0B0B0',
-  },
-  signInButton: {
-    backgroundColor: '#FF6600',
-    borderRadius: 10,
-    paddingVertical: 15,
-    width: '100%',
-    alignItems: 'center',
-    marginTop: 20,
-  },
-  signInButtonText: {
-    fontSize: 18,
-    color: '#FFFFFF',
-  },
-  signUpButton: {
-    backgroundColor: '#00CC44',
-    borderRadius: 10,
-    paddingVertical: 15,
-    width: '100%',
-    alignItems: 'center',
-    marginTop: 20,
-  },
-  signUpButtonText: {
-    fontSize: 18,
-    color: '#FFFFFF',
-  },
+  safeArea: { flex: 1, backgroundColor: '#0044CC' },
+  scrollContainer: { flexGrow: 1, justifyContent: 'center' },
+  container: { paddingHorizontal: 16, alignItems: 'center' },
+  uctLogo: { width: 106, height: 106, marginVertical: 20 },
+  signInTitle: { fontSize: 36, color: '#FFFFFF', marginVertical: 20 },
+  input: { backgroundColor: '#333', borderRadius: 10, padding: 16, fontSize: 14, color: '#FFFFFF', marginBottom: 12, borderColor: '#555', borderWidth: 1 },
+  signInButton: { backgroundColor: '#FF6600', borderRadius: 10, padding: 15, width: '100%', alignItems: 'center', marginTop: 20 },
+  signInButtonText: { fontSize: 18, color: '#FFFFFF' },
+  signUpButton: { backgroundColor: '#00CC44', borderRadius: 10, padding: 15, width: '100%', alignItems: 'center', marginTop: 20 },
+  signUpButtonText: { fontSize: 18, color: '#FFFFFF' }
 });
 
 export default TutorSignInPage;
