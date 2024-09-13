@@ -1,14 +1,41 @@
-import React, { useState } from 'react';
-import { View, Text, Alert, StyleSheet, TouchableOpacity } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, Alert, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
 import { Ionicons } from '@expo/vector-icons';
+import { doc, getDoc, updateDoc, query, where, getDocs } from 'firebase/firestore'; // Firestore functions
+import { db } from './firebase'; // Your Firestore setup
 
-const ImmediateRequestPage = ({ navigation }) => {
+const ImmediateRequestPage = ({ navigation, route }) => {
   const [course, setCourse] = useState('');
   const [duration, setDuration] = useState('');
   const [tier, setTier] = useState('');
   const [price, setPrice] = useState(0);
-  const [balance, setBalance] = useState(1000);
+  const [balance, setBalance] = useState(100); // Default balance if not fetched yet
+  const email = route.params?.email || ''; // Get the user's email from navigation params
+
+  // Fetch the user's balance from Firestore when the page loads
+  useEffect(() => {
+    const fetchBalance = async () => {
+      try {
+        // Query the 'students' collection for the document that matches the user's email
+        const q = query(collection(db, 'students'), where('email', '==', email));
+        const querySnapshot = await getDocs(q);
+        
+        if (!querySnapshot.empty) {
+          const docSnap = querySnapshot.docs[0]; // Get the first matching document
+          const userData = docSnap.data();
+          setBalance(userData.balance || 100); // Set balance from Firestore or default to R100
+        } else {
+          Alert.alert('Error', 'User details not found.');
+        }
+      } catch (error) {
+        console.error('Error fetching balance:', error);
+        Alert.alert('Error', 'Unable to fetch user balance.');
+      }
+    };
+
+    fetchBalance();
+  }, [email]);
 
   const calculatePrice = () => {
     let basePrice = 0;
@@ -28,18 +55,36 @@ const ImmediateRequestPage = ({ navigation }) => {
     setPrice(totalPrice);
   };
 
-  const confirmRequest = () => {
+  const confirmRequest = async () => {
     if (balance >= price) {
-      setBalance(balance - price);
-      Alert.alert('Request Confirmed', `R${price} has been deducted from your wallet.`);
-      navigation.navigate('SearchingScreen');
+      try {
+        // Query the 'students' collection again to update the document
+        const q = query(collection(db, 'students'), where('email', '==', email));
+        const querySnapshot = await getDocs(q);
+        
+        if (!querySnapshot.empty) {
+          const docSnap = querySnapshot.docs[0]; // Get the first matching document
+          const docRef = doc(db, 'students', docSnap.id); // Reference to the document
+          
+          const newBalance = balance - price;
+          await updateDoc(docRef, { balance: newBalance }); // Update the balance in Firestore
+
+          setBalance(newBalance); // Update the balance locally
+
+          Alert.alert('Request Confirmed', `R${price} has been deducted from your wallet.`);
+          navigation.navigate('SearchingScreen'); // Navigate to another screen
+        }
+      } catch (error) {
+        console.error('Error updating balance:', error);
+        Alert.alert('Error', 'Unable to update balance.');
+      }
     } else {
       Alert.alert('Insufficient Funds', 'Please select a lower-tier tutor or refill your funds.');
     }
   };
 
   return (
-    <View style={styles.container}>
+    <ScrollView style={styles.container}>
       <TouchableOpacity
         style={styles.backButton}
         onPress={() => navigation.goBack()}
@@ -102,7 +147,7 @@ const ImmediateRequestPage = ({ navigation }) => {
       >
         <Text style={styles.buttonText}>Confirm Request</Text>
       </TouchableOpacity>
-    </View>
+    </ScrollView>
   );
 };
 
@@ -118,21 +163,22 @@ const styles = StyleSheet.create({
     left: 20,
   },
   title: {
-    fontSize: 26,
+    fontSize: 24,
     fontWeight: 'bold',
-    marginVertical: 40,
+    marginVertical: 20,
     textAlign: 'center',
   },
   picker: {
-    height: 50,
+    height: 40,
     width: '100%',
-    marginBottom: 15,
+    marginBottom: 20,
     backgroundColor: '#e0e0e0',
     borderRadius: 8,
+    paddingHorizontal: 10,
   },
   calculateButton: {
     backgroundColor: '#ff7043',
-    paddingVertical: 15,
+    paddingVertical: 12,
     borderRadius: 25,
     alignItems: 'center',
     marginTop: 10,
@@ -140,14 +186,14 @@ const styles = StyleSheet.create({
   },
   confirmButton: {
     backgroundColor: '#42a5f5',
-    paddingVertical: 15,
+    paddingVertical: 12,
     borderRadius: 25,
     alignItems: 'center',
     marginTop: 10,
   },
   buttonText: {
     color: '#fff',
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '600',
   },
   price: {

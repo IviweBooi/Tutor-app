@@ -95,6 +95,7 @@ const InformationPage = () => {
         degree,
         year,
         courses: selectedCoursesList,
+        balance: 100, // Add balance field set to 100
       });
 
       navigation.navigate("HomePage");
@@ -222,7 +223,7 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: FontSize.size_md,
-    color: '#10294F',  // Updated to #10294F for all labels
+    color: '#10294F',  
     marginBottom: 10,
     alignSelf: 'flex-start',
     fontWeight: 'bold',
@@ -247,8 +248,8 @@ const styles = StyleSheet.create({
     borderRadius: 10, 
   },
   pickerSelected: {
-    borderColor: 'blue',  // Makes picker border blue when selected
-    backgroundColor: '#F0F0F0',  // Light blue background when selected
+    borderColor: 'blue',  
+    backgroundColor: '#F0F0F0',  
   },
   courseItem: {
     flexDirection: 'row',
@@ -285,5 +286,3 @@ const styles = StyleSheet.create({
 });
 
 export default InformationPage;
-
-
