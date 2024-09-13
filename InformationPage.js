@@ -95,7 +95,7 @@ const InformationPage = () => {
         degree,
         year,
         courses: selectedCoursesList,
-        balance: 100, // Add balance field set to 100
+        balance:0, // Add balance field set to 100
       });
 
       navigation.navigate("HomePage");

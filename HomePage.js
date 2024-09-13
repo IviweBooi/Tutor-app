@@ -10,32 +10,31 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
-import { db, auth } from './firebase'; // Import Firebase services
-import { collection, query, where, getDocs } from 'firebase/firestore'; // Firestore query functions
+import { db, auth } from './firebase'; 
+import { collection, query, where, getDocs } from 'firebase/firestore';
 
 const { width } = Dimensions.get('window');
 
 const HomePage = () => {
   const navigation = useNavigation();
-  const [userDetails, setUserDetails] = useState(null); // State to hold user details
-  const [balance, setBalance] = useState(null); // State to hold balance
-  const [loading, setLoading] = useState(true); // Loading state
-  const [error, setError] = useState(null); // Error state for feedback
+  const [userDetails, setUserDetails] = useState(null);
+  const [loading, setLoading] = useState(true); 
+  const [error, setError] = useState(null); 
 
-  // Fetch user details and balance from Firestore when the HomePage loads
+  
   useEffect(() => {
     const fetchUserDetails = async () => {
       try {
-        const user = auth.currentUser;  // Get the current logged-in user
+        const user = auth.currentUser;
         if (!user) {
-          // If no user, redirect to login screen
-          navigation.navigate('LoginPage');
+          
+          navigation.navigate('StudentSignInPage');
           return;
         }
 
-        const email = user.email;  // Get the user's email
+        const email = user.email;  
         if (email) {
-          // Query Firestore for a document where the email field matches the user's email
+          
           const studentsRef = collection(db, 'students');
           const q = query(studentsRef, where('email', '==', email));
           const querySnapshot = await getDocs(q);
@@ -44,13 +43,6 @@ const HomePage = () => {
             querySnapshot.forEach((doc) => {
               const userData = doc.data();
               setUserDetails(userData);
-
-              // Set the balance if it exists in the document
-              if (userData.balance) {
-                setBalance(userData.balance);
-              } else {
-                setBalance(0); // Default balance to 0 if not found
-              }
             });
           } else {
             setError('User details not found.');
@@ -66,7 +58,7 @@ const HomePage = () => {
       }
     };
 
-    fetchUserDetails();  // Call the function to fetch user details
+    fetchUserDetails();
   }, []);
 
   const handleRequestTutor = () => {
@@ -74,13 +66,17 @@ const HomePage = () => {
   };
 
   const handleNotificationsClick = () => {
-    navigation.navigate('Notifications');
+    navigation.navigate('StudentProfile');
+  };
+
+  const handleEwalletClick = () => {
+    navigation.navigate('WalletPage');
   };
 
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <Text>Loading...</Text>
+        <Text>Processing...</Text>
       </View>
     );
   }
@@ -111,9 +107,9 @@ const HomePage = () => {
           source={require('./assets/uct-logo.png')}
           style={styles.logo}
         />
-        {/* Balance Button */}
-        <TouchableOpacity style={styles.balanceButton}>
-          <Text style={styles.balanceText}>Balance: R{balance}</Text>
+        
+        <TouchableOpacity onPress={handleEwalletClick} style={styles.iconContainer}>
+          <Ionicons name="wallet-outline" size={30} color="#ffffff" />
         </TouchableOpacity>
       </View>
       <ScrollView contentContainerStyle={styles.contentContainer}>
@@ -247,19 +243,6 @@ const styles = StyleSheet.create({
   iconContainer: {
     padding: 10,
   },
-  balanceButton: {
-    backgroundColor: '#fff',
-    borderRadius: 10,
-    paddingVertical: 8,
-    paddingHorizontal: 15,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  balanceText: {
-    fontSize: 16,
-    color: '#4A90E2',
-    fontWeight: 'bold',
-  },
   contentContainer: {
     paddingBottom: 80, 
   },
@@ -292,55 +275,58 @@ const styles = StyleSheet.create({
     elevation: 5,
   },
   sectionTitle: {
-    fontSize: 20,
-    fontWeight: '600',
-    marginBottom: 15,
-    color: '#333333',
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 10,
+    color: '#333',
   },
   coursesContainer: {
     flexDirection: 'row',
-    alignItems: 'center',
+    flexWrap: 'wrap',
   },
   courseButton: {
-    backgroundColor: '#E8F1FF',
-    borderRadius: 10,
-    paddingVertical: 15,
+    backgroundColor: '#E5F0FF',
+    paddingVertical: 10,
     paddingHorizontal: 20,
-    alignItems: 'center',
+    borderRadius: 10,
     marginRight: 10,
+    marginBottom: 10,
   },
   courseText: {
-    fontSize: 16,
-    fontWeight: '500',
     color: '#4A90E2',
+    fontWeight: 'bold',
   },
   sessionButton: {
-    backgroundColor: '#FFEFE8',
-    padding: 15,
+    backgroundColor: '#FFF0E5',
+    paddingVertical: 10,
+    paddingHorizontal: 20,
     borderRadius: 10,
-    alignItems: 'center',
+    marginRight: 10,
+    marginBottom: 10,
   },
   sessionText: {
-    fontSize: 16,
-    color: '#FF7F50',
+    color: '#E55542',
+    fontWeight: 'bold',
   },
   requestButton: {
-    backgroundColor: '#E8FFE8',
-    padding: 15,
+    backgroundColor: '#E5F0FF',
+    paddingVertical: 10,
+    paddingHorizontal: 20,
     borderRadius: 10,
-    alignItems: 'center',
+    marginRight: 10,
+    marginBottom: 10,
   },
   requestText: {
-    fontSize: 16,
-    color: '#32CD32',
+    color: '#4A90E2',
+    fontWeight: 'bold',
   },
   tutorCard: {
     backgroundColor: '#ffffff',
-    padding: 15,
-    borderRadius: 15,
+    padding: 10,
+    borderRadius: 10,
+    marginRight: 10,
+    width: width * 0.5,
     alignItems: 'center',
-    marginRight: 15,
-    width: width * 0.6,
     shadowColor: '#000',
     shadowOpacity: 0.1,
     shadowRadius: 10,
@@ -353,51 +339,61 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   tutorName: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#333333',
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 5,
   },
   tutorTier: {
     fontSize: 14,
-    color: '#666666',
-    marginBottom: 10,
+    color: '#4A90E2',
   },
   ratingContainer: {
     flexDirection: 'row',
+    marginTop: 5,
   },
   footer: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent: 'space-around',
     alignItems: 'center',
     backgroundColor: '#ffffff',
+    paddingVertical: 10,
+    paddingHorizontal: 15,
     borderTopWidth: 1,
     borderTopColor: '#E5E5E5',
-    paddingVertical: 10,
-    paddingHorizontal: 20,
     position: 'absolute',
     bottom: 0,
-    width: '100%',
-    shadowColor: '#000',
-    shadowOpacity: 0.1,
-    shadowRadius: 10,
-    elevation: 5,
+    left: 0,
+    right: 0,
   },
   footerIcon: {
-    flex: 1,
-    alignItems: 'center',
+    paddingHorizontal: 10,
   },
   addButtonContainer: {
     backgroundColor: '#4A90E2',
     borderRadius: 50,
-    width: 60,
-    height: 60,
+    padding: 10,
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOpacity: 0.2,
-    shadowRadius: 10,
-    elevation: 5,
+    marginHorizontal: 10,
+    marginBottom: 10,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+  },
+  errorText: {
+    color: 'red',
+    fontSize: 16,
+    textAlign: 'center',
   },
 });
 
-export default HomePage; //2
+export default HomePage;

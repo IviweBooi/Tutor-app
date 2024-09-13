@@ -19,6 +19,7 @@ import TutorReviewPage from './TutorReviewPage';
 import TutorJobConfirmationPage from './TutorJobConfirmationPage';
 import InformationPage from './InformationPage';
 import ForgotPassword from './ForgotPassword';
+import StudentProfile from './StudentProfile';
 
 import { auth} from './firebase';
 import { AppRegistry } from 'react-native';
@@ -60,9 +61,9 @@ export default function App() {
           options={{ headerShown: false }}
         />
         <Stack.Screen name="TutorSignUpPage" 
-        component={TutorSignUpPage} /> 
+        component={TutorSignUpPage} options={{ headerShown: false }} /> 
         <Stack.Screen name="InformationPage" 
-        component={InformationPage} />
+        component={InformationPage} options={{ headerShown: false }} />
         <Stack.Screen
           name="TutorSignInPage"
           component={TutorSignInPage}
@@ -81,8 +82,9 @@ export default function App() {
         <Stack.Screen name="TutorReviewPage" component={TutorReviewPage} options={{ headerShown: false }}/>
         <Stack.Screen name="SearchingScreen" component={SearchingScreen} options={{ headerShown: false }}/>
         <Stack.Screen name="TutorJobConfirmationPage" component={TutorJobConfirmationPage} options={{ headerShown: false }} />
-        <Stack.Screen name="ForgotPassword" component={ForgotPassword} />
+        <Stack.Screen name="ForgotPassword" component={ForgotPassword} options={{ headerShown: false }} />
         <Stack.Screen name="TutorFoundScreen" component={TutorFoundScreen} options={{ headerShown: false }}/>
+        <Stack.Screen name="StudentProfile" component={StudentProfile} options={{ headerShown: false }}/>
         <Stack.Screen 
           name="TutorHomePage" 
           component={TutorHomePage} 

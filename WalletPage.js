@@ -1,62 +1,143 @@
-import React, { useState } from 'react';
-import { View, Text, TextInput, Button, StyleSheet, ScrollView, Alert } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import {
+  View,
+  Text,
+  ScrollView,
+  TouchableOpacity,
+  StyleSheet,
+  Dimensions,
+  Alert,
+} from 'react-native';
+import { useNavigation } from '@react-navigation/native';
+import { Ionicons } from '@expo/vector-icons'; 
+import { db, auth } from './firebase';
+import { collection, query, where, getDocs } from 'firebase/firestore'; 
+
+const { width } = Dimensions.get('window');
 
 const WalletPage = () => {
-  const [balance] = useState(1000);
-  const [transactions] = useState([
-    { tutorName: 'Mnelisi Mabuza', amount: 200, date: '2024-08-14' },
-    { tutorName: 'Jane Doe', amount: 150, date: '2024-08-13' },
-  ]);
-  const [name, setName] = useState('John Doe');
-  const [email, setEmail] = useState('john.doe@example.com');
-  const [phone, setPhone] = useState('+123456789');
+  const navigation = useNavigation();
+  const [balance, setBalance] = useState(null);
+  const [transactionHistory, setTransactionHistory] = useState([]); 
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null); 
 
-  const handleSaveProfile = () => {
-    Alert.alert('Profile Updated', 'Your contact information has been updated.');
+  useEffect(() => {
+    const fetchWalletData = async () => {
+      try {
+        const user = auth.currentUser;
+        if (!user) {
+          navigation.navigate('WelcomePage');
+          return;
+        }
+
+        const email = user.email;
+        if (email) {
+          const studentsRef = collection(db, 'students');
+          const q = query(studentsRef, where('email', '==', email));
+          const querySnapshot = await getDocs(q);
+
+          if (!querySnapshot.empty) {
+            querySnapshot.forEach((doc) => {
+              const userData = doc.data();
+              setBalance(userData.balance || 0);
+              setTransactionHistory(userData.transactionHistory || []); 
+            });
+          } else {
+            setError('User details not found.');
+          }
+        } else {
+          setError('No email associated with the current user.');
+        }
+      } catch (error) {
+        console.error('Error fetching wallet details: ', error);
+        setError('Failed to fetch wallet details.');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchWalletData();
+  }, []);
+
+  const handleDeposit = () => {
+    Alert.alert('Deposit', 'Deposit feature coming soon.');
   };
 
-  return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.title}>Student Wallet Profile</Text>
+  const handleWithdraw = () => {
+    Alert.alert('Withdraw', 'Withdraw feature coming soon.');
+  };
 
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Wallet Information</Text>
-        <Text style={styles.balance}>Balance: {balance} units</Text>
-        <Text style={styles.transactionsTitle}>Transaction History:</Text>
-        {transactions.length > 0 ? (
-          transactions.map((transaction, index) => (
-            <Text key={index} style={styles.transaction}>
-              {transaction.date} - {transaction.tutorName} - {transaction.amount} units
-            </Text>
+  const handleAddBankAccount = () => {
+    Alert.alert('Add Bank Account', 'Feature to add bank account or card coming soon.');
+  };
+
+  const handleGenerateStatement = () => {
+    Alert.alert('Account Statement', 'Account statement generation feature coming soon.');
+  };
+
+  if (loading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <Text>Processing...</Text>
+      </View>
+    );
+  }
+
+  if (error) {
+    return (
+      <View style={styles.errorContainer}>
+        <Text style={styles.errorText}>{error}</Text>
+      </View>
+    );
+  }
+
+  return (
+    <ScrollView style={styles.container}>
+      <View style={styles.balanceContainer}>
+        <Text style={styles.balanceTitle}>Credit Balance</Text>
+        <Text style={styles.balanceText}>R{balance}</Text>
+      </View>
+
+      <View style={styles.transactionContainer}>
+        <Text style={styles.transactionTitle}>Transaction History</Text>
+        {transactionHistory.length > 0 ? (
+          transactionHistory.map((transaction, index) => (
+            <View key={index} style={styles.transactionItem}>
+              <Text style={styles.transactionText}>
+                {transaction.description} - R{transaction.amount}
+              </Text>
+              <Text style={styles.transactionDate}>
+                {new Date(transaction.date).toLocaleDateString()}
+              </Text>
+            </View>
           ))
         ) : (
-          <Text style={styles.noTransactions}>No transactions yet.</Text>
+          <Text style={styles.noTransactionsText}>No transactions available.</Text>
         )}
       </View>
 
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Personal Information</Text>
-        <TextInput
-          style={styles.input}
-          placeholder="Name"
-          value={name}
-          onChangeText={setName}
-        />
-        <TextInput
-          style={styles.input}
-          placeholder="Email"
-          value={email}
-          onChangeText={setEmail}
-          keyboardType="email-address"
-        />
-        <TextInput
-          style={styles.input}
-          placeholder="Phone Number"
-          value={phone}
-          onChangeText={setPhone}
-          keyboardType="phone-pad"
-        />
-        <Button title="Save Profile" onPress={handleSaveProfile} />
+      {/* Action Buttons */}
+      <View style={styles.actionsContainer}>
+        <TouchableOpacity style={styles.actionButton} onPress={handleDeposit}>
+          <Ionicons name="add-circle" size={24} color="#fff" />
+          <Text style={styles.buttonText}>Deposit</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.actionButton} onPress={handleWithdraw}>
+          <Ionicons name="remove-circle" size={24} color="#fff" />
+          <Text style={styles.buttonText}>Withdraw</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.actionButton} onPress={handleAddBankAccount}>
+          <Ionicons name="card" size={24} color="#fff" />
+          <Text style={styles.buttonText}>Add Bank Account</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.actionButton} onPress={handleGenerateStatement}>
+          <Ionicons name="document-text" size={24} color="#fff" />
+          <Text style={styles.buttonText}>Generate Statement</Text>
+        </TouchableOpacity>
       </View>
     </ScrollView>
   );
@@ -64,61 +145,104 @@ const WalletPage = () => {
 
 const styles = StyleSheet.create({
   container: {
-    flexGrow: 1,
+    flex: 1,
+    backgroundColor: '#F0F4FF',
     padding: 20,
-    backgroundColor: '#f0f0f0',
   },
-  title: {
-    fontSize: 26,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 20,
-    textAlign: 'center',
-  },
-  section: {
+  balanceContainer: {
     backgroundColor: '#fff',
-    borderRadius: 10,
-    padding: 15,
+    padding: 20,
+    borderRadius: 15,
     marginBottom: 20,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
-    shadowRadius: 5,
-    elevation: 2,
+    shadowRadius: 10,
+    elevation: 5,
+    alignItems: 'center',
   },
-  sectionTitle: {
+  balanceTitle: {
     fontSize: 20,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 10,
+  },
+  balanceText: {
+    fontSize: 36,
     fontWeight: 'bold',
+    color: '#4A90E2',
+  },
+  transactionContainer: {
+    backgroundColor: '#fff',
+    padding: 20,
+    borderRadius: 15,
+    shadowColor: '#000',
+    shadowOpacity: 0.1,
+    shadowRadius: 10,
+    elevation: 5,
+    marginBottom: 20,
+  },
+  transactionTitle: {
+    fontSize: 20,
+    fontWeight: '600',
     color: '#333',
     marginBottom: 15,
   },
-  balance: {
-    fontSize: 18,
+  transactionItem: {
+    backgroundColor: '#E8F1FF',
+    padding: 15,
+    borderRadius: 10,
     marginBottom: 10,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
   },
-  transactionsTitle: {
-    fontSize: 18,
-    marginTop: 20,
-    marginBottom: 10,
-    fontWeight: 'bold',
-  },
-  transaction: {
+  transactionText: {
     fontSize: 16,
-    marginBottom: 5,
+    color: '#4A90E2',
   },
-  noTransactions: {
+  transactionDate: {
+    fontSize: 14,
+    color: '#666',
+  },
+  noTransactionsText: {
     fontSize: 16,
-    fontStyle: 'italic',
     color: '#999',
+    textAlign: 'center',
+    marginTop: 10,
   },
-  input: {
-    borderWidth: 1,
-    borderColor: '#ccc',
-    padding: 10,
+  actionsContainer: {
+    marginTop: 20,
+    alignItems: 'center',
+  },
+  actionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#4A90E2',
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 10,
     marginBottom: 15,
-    borderRadius: 5,
+    width: width * 0.8,
+  },
+  buttonText: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginLeft: 10,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  errorText: {
     fontSize: 16,
-    color: '#333',
+    color: 'red',
   },
 });
 
