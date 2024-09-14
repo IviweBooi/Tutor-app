@@ -1,80 +1,60 @@
 import React, { useState, useEffect } from 'react';
-import {
-  View,
-  Text,
-  ScrollView,
-  TouchableOpacity,
-  StyleSheet,
-  Dimensions,
-  Alert,
-} from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Dimensions, Alert } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons'; 
 import { db, auth } from './firebase';
-import { collection, query, where, getDocs } from 'firebase/firestore'; 
+import { collection, query, where, onSnapshot } from 'firebase/firestore'; 
 
 const { width } = Dimensions.get('window');
 
 const WalletPage = () => {
   const navigation = useNavigation();
-  const [balance, setBalance] = useState(null);
+  const [balance, setBalance] = useState(0);
   const [transactionHistory, setTransactionHistory] = useState([]); 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null); 
 
   useEffect(() => {
-    const fetchWalletData = async () => {
-      try {
-        const user = auth.currentUser;
-        if (!user) {
-          navigation.navigate('WelcomePage');
-          return;
-        }
+    const fetchWalletData = () => {
+      const user = auth.currentUser;
+      if (!user) {
+        navigation.navigate('WelcomePage');
+        return;
+      }
 
-        const email = user.email;
-        if (email) {
-          const studentsRef = collection(db, 'students');
-          const q = query(studentsRef, where('email', '==', email));
-          const querySnapshot = await getDocs(q);
-
+      const email = user.email;
+      if (email) {
+        const studentsRef = collection(db, 'students');
+        const q = query(studentsRef, where('email', '==', email));
+        const unsubscribe = onSnapshot(q, (querySnapshot) => {
           if (!querySnapshot.empty) {
             querySnapshot.forEach((doc) => {
               const userData = doc.data();
+              console.log('Fetched user data:', userData); // Log user data
               setBalance(userData.balance || 0);
               setTransactionHistory(userData.transactionHistory || []); 
             });
           } else {
+            console.warn('No user details found for email:', email);
             setError('User details not found.');
           }
-        } else {
-          setError('No email associated with the current user.');
-        }
-      } catch (error) {
-        console.error('Error fetching wallet details: ', error);
-        setError('Failed to fetch wallet details.');
-      } finally {
+          setLoading(false);
+        }, (error) => {
+          console.error('Error fetching wallet details: ', error);
+          setError('Failed to fetch wallet details.');
+          setLoading(false);
+        });
+        
+        return () => unsubscribe();
+      } else {
+        console.warn('No email associated with the current user.');
+        setError('No email associated with the current user.');
         setLoading(false);
       }
     };
 
     fetchWalletData();
-  }, []);
-
-  const handleDeposit = () => {
-    Alert.alert('Deposit', 'Deposit feature coming soon.');
-  };
-
-  const handleWithdraw = () => {
-    Alert.alert('Withdraw', 'Withdraw feature coming soon.');
-  };
-
-  const handleAddBankAccount = () => {
-    Alert.alert('Add Bank Account', 'Feature to add bank account or card coming soon.');
-  };
-
-  const handleGenerateStatement = () => {
-    Alert.alert('Account Statement', 'Account statement generation feature coming soon.');
-  };
+  }, [navigation]);
 
   if (loading) {
     return (
@@ -119,22 +99,22 @@ const WalletPage = () => {
 
       {/* Action Buttons */}
       <View style={styles.actionsContainer}>
-        <TouchableOpacity style={styles.actionButton} onPress={handleDeposit}>
+        <TouchableOpacity style={styles.actionButton}>
           <Ionicons name="add-circle" size={24} color="#fff" />
           <Text style={styles.buttonText}>Deposit</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.actionButton} onPress={handleWithdraw}>
+        <TouchableOpacity style={styles.actionButton}>
           <Ionicons name="remove-circle" size={24} color="#fff" />
           <Text style={styles.buttonText}>Withdraw</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.actionButton} onPress={handleAddBankAccount}>
+        <TouchableOpacity style={styles.actionButton}>
           <Ionicons name="card" size={24} color="#fff" />
           <Text style={styles.buttonText}>Add Bank Account</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.actionButton} onPress={handleGenerateStatement}>
+        <TouchableOpacity style={styles.actionButton}>
           <Ionicons name="document-text" size={24} color="#fff" />
           <Text style={styles.buttonText}>Generate Statement</Text>
         </TouchableOpacity>

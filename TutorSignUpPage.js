@@ -3,8 +3,8 @@ import { View, Text, Pressable, TextInput, SafeAreaView, ScrollView, StyleSheet,
 import { Picker } from '@react-native-picker/picker'; 
 import CheckBox from 'expo-checkbox'; 
 import { useNavigation } from '@react-navigation/native'; 
-import { db } from './firebase'; // Import Firestore instance
-import { collection, addDoc } from 'firebase/firestore'; // Import Firestore functions
+import { db } from './firebase';
+import { collection, addDoc, updateDoc } from 'firebase/firestore';
 
 const TutorSignUpPage = () => {
   const navigation = useNavigation();
@@ -18,6 +18,7 @@ const TutorSignUpPage = () => {
   const [selectedCourses, setSelectedCourses] = useState({});
   const [courses, setCourses] = useState([]);
   const [isSubmitDisabled, setIsSubmitDisabled] = useState(true);
+  const [termsAccepted, setTermsAccepted] = useState(false);
 
   const coursesByYear = {
     ComputerScience: {
@@ -117,7 +118,7 @@ const TutorSignUpPage = () => {
   };
 
   const validateCellphone = (value) => {
-    const cellphoneRegex = /^0[0-9]{9}$/; // Ensures 10 digits starting with 0
+    const cellphoneRegex = /^0[0-9]{9}$/;
     if (!cellphoneRegex.test(value)) {
       setCellphoneError('Cellphone number must start with 0 and be exactly 10 digits.');
     } else {
@@ -125,7 +126,6 @@ const TutorSignUpPage = () => {
     }
   };
 
-  // Function to handle form submission
   const handleNext = async () => {
     if (!name || !lastName || !cellphone || !level || (level === 'Undergraduate' && !studyYear) || !Object.values(major).includes(true)) {
       Alert.alert('Error', 'Please fill in all the fields.');
@@ -143,7 +143,11 @@ const TutorSignUpPage = () => {
       return;
     }
 
-    // Prepare data to save to Firebase
+    if (!termsAccepted) {
+      Alert.alert('Error', 'You must accept the terms and conditions.');
+      return;
+    }
+
     const tutorData = {
       firstName: name,
       lastName,
@@ -152,125 +156,140 @@ const TutorSignUpPage = () => {
       studyYear: level === 'Postgraduate' ? 'N/A' : studyYear,
       major: Object.keys(major).filter(key => major[key]),
       courses: selectedCoursesList,
-      availability: 'available', // Add availability field
+      availability: 'available',
     };
 
-    // Add tier field for postgraduate tutors
     if (level === 'Postgraduate') {
       tutorData.tier = 3;
     }
 
     try {
-      // Save to Firestore (tutors collection)
-      await addDoc(collection(db, 'tutors'), tutorData);
+
+      const docRef = await addDoc(collection(db, 'tutors'), tutorData);
+
+      await updateDoc(docRef, { TutorID: docRef.id });
+
       Alert.alert('Success', 'Tutor information saved successfully');
-      navigation.navigate('TutorHomePage');
+      navigation.navigate('TutorHomePage', { tutorId: docRef.id });
     } catch (error) {
       Alert.alert('Error', `Failed to save tutor data: ${error.message}`);
     }
   };
 
   useEffect(() => {
+    const hasValidInput = name && lastName && cellphone && level && (level === 'Postgraduate' || studyYear) && Object.values(major).includes(true) && !cellphoneError && termsAccepted;
     const selectedCoursesList = Object.keys(selectedCourses).filter(course => selectedCourses[course]);
-    const isFormComplete = name && lastName && cellphone && !cellphoneError && level && (level === 'Postgraduate' || studyYear) && selectedCoursesList.length > 0;
-    setIsSubmitDisabled(!isFormComplete);
-  }, [name, lastName, cellphone, cellphoneError, level, studyYear, selectedCourses]);
-
-  useEffect(() => {
-    updateCourses(studyYear, major);
-  }, [studyYear, major]);
+    setIsSubmitDisabled(!hasValidInput || selectedCoursesList.length === 0);
+  }, [name, lastName, cellphone, level, studyYear, major, selectedCourses, cellphoneError, termsAccepted]);
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollContainer}>
-        <View style={styles.container}>
-          <Text style={styles.title}>Tutor Details</Text>
-
-          <Text style={styles.label}>First Name</Text>
+        <View style={styles.formContainer}>
+          <Text style={styles.label}>First Name:</Text>
           <TextInput
             style={styles.input}
-            placeholder="Enter your first name"
             value={name}
             onChangeText={setName}
+            placeholder="Enter your first name"
+            placeholderTextColor="#a9a9a9"
           />
-
-          <Text style={styles.label}>Last Name</Text>
+          <Text style={styles.label}>Last Name:</Text>
           <TextInput
             style={styles.input}
-            placeholder="Enter your last name"
             value={lastName}
             onChangeText={setLastName}
+            placeholder="Enter your last name"
+            placeholderTextColor="#a9a9a9"
           />
-
-          <Text style={styles.label}>Cellphone Number</Text>
+          <Text style={styles.label}>Cellphone:</Text>
           <TextInput
             style={styles.input}
-            placeholder="Enter your cellphone number"
-            keyboardType="phone-pad"
             value={cellphone}
-            onChangeText={(value) => {
+            onChangeText={value => {
               setCellphone(value);
               validateCellphone(value);
             }}
+            keyboardType="numeric"
+            placeholder="Enter your cellphone number"
+            placeholderTextColor="#a9a9a9"
           />
-          {cellphoneError ? <Text style={styles.errorText}>{cellphoneError}</Text> : null}
-
-          <Text style={styles.label}>Level of Study</Text>
+          {cellphoneError ? <Text style={styles.error}>{cellphoneError}</Text> : null}
+          <Text style={styles.label}>Level of Study:</Text>
           <Picker
             selectedValue={level}
-            style={styles.picker}
             onValueChange={handleLevelChange}
+            style={styles.picker}
           >
-            <Picker.Item label="Select..." value="" />
+            <Picker.Item label="Select Level" value="" />
             <Picker.Item label="Undergraduate" value="Undergraduate" />
             <Picker.Item label="Postgraduate" value="Postgraduate" />
           </Picker>
-
           {level === 'Undergraduate' && (
-            <Picker
-              selectedValue={studyYear}
-              style={styles.picker}
-              onValueChange={handleYearChange}
-            >
-              <Picker.Item label="Select Year..." value="" />
-              <Picker.Item label="2nd Year" value="2nd" />
-              <Picker.Item label="3rd Year" value="3rd" />
-            </Picker>
+            <>
+              <Text style={styles.label}>Year of Study:</Text>
+              <Picker
+                selectedValue={studyYear}
+                onValueChange={handleYearChange}
+                style={styles.picker}
+              >
+                <Picker.Item label="Select Year" value="" />
+                <Picker.Item label="1st Year" value="1st" />
+                <Picker.Item label="2nd Year" value="2nd" />
+                <Picker.Item label="3rd Year" value="3rd" />
+              </Picker>
+            </>
           )}
-
-          <Text style={styles.label}>Tutoring Major</Text>
-          <TouchableOpacity onPress={() => handleMajorChange('ComputerScience')} style={styles.courseItem}>
-            <CheckBox value={major.ComputerScience} />
-            <Text style={styles.courseText}>Computer Science</Text>
-          </TouchableOpacity>
-          <TouchableOpacity onPress={() => handleMajorChange('InformationSystems')} style={styles.courseItem}>
-            <CheckBox value={major.InformationSystems} />
-            <Text style={styles.courseText}>Information Systems</Text>
-          </TouchableOpacity>
-
-          <Text style={styles.label}>Courses Available for Tutoring</Text>
-          {courses.length > 0 ? (
-            courses.map((course, index) => (
-              <TouchableOpacity key={index} onPress={() => handleCheckboxChange(course)} style={styles.courseItem}>
+          <Text style={styles.label}>Major:</Text>
+          <View style={styles.checkboxContainer}>
+            {Object.keys(major).map(key => (
+              <View key={key} style={styles.checkboxWrapper}>
                 <CheckBox
-                  value={selectedCourses[course]} 
-                  onValueChange={() => handleCheckboxChange(course)} 
-                  color={selectedCourses[course] ? "blue" : undefined} 
+                  value={major[key]}
+                  onValueChange={() => handleMajorChange(key)}
                 />
-                <Text style={styles.courseText}>{course}</Text>
-              </TouchableOpacity>
-            ))
-          ) : (
-            <Text style={styles.noCoursesText}>Select a year and major to see courses</Text>
+                <Text style={styles.checkboxText}>{key.replace(/([A-Z])/g, ' $1').trim()}</Text>
+              </View>
+            ))}
+          </View>
+          {courses.length > 0 && (
+            <>
+              <Text style={styles.label}>Courses:</Text>
+              {courses.map(course => (
+                <Pressable
+                  key={course}
+                  style={styles.courseContainer}
+                  onPress={() => handleCheckboxChange(course)}
+                >
+                  <Text style={styles.courseText}>{course}</Text>
+                  <CheckBox
+                    value={selectedCourses[course]}
+                    onValueChange={() => handleCheckboxChange(course)}
+                  />
+                </Pressable>
+              ))}
+            </>
           )}
-
-          <Pressable
-            style={[styles.nextButton, isSubmitDisabled && styles.disabledButton]}
+          <View style={styles.termsContainer}>
+            <CheckBox
+              value={termsAccepted}
+              onValueChange={setTermsAccepted}
+            />
+            <Text style={styles.termsText}>I have read and accept the terms and conditions.</Text>
+            <Pressable
+              style={styles.termsButton}
+              onPress={() => Alert.alert('Terms and Conditions', 'Terms and conditions content goes here.')}
+            >
+              <Text style={styles.termsButtonText}>Read Terms & Conditions</Text>
+            </Pressable>
+          </View>
+          <TouchableOpacity
+            style={[styles.button, isSubmitDisabled && styles.disabledButton]}
             onPress={handleNext}
             disabled={isSubmitDisabled}
           >
-            <Text style={styles.nextButtonText}>Continue</Text>
-          </Pressable>
+            <Text style={styles.buttonText}>Next</Text>
+          </TouchableOpacity>
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -278,86 +297,105 @@ const TutorSignUpPage = () => {
 };
 
 const styles = StyleSheet.create({
-  safeArea: {
+  container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#002b36',
   },
   scrollContainer: {
     flexGrow: 1,
     justifyContent: 'center',
+    padding: 20,
   },
-  container: {
-    paddingHorizontal: 16,
-    alignItems: 'center',
-  },
-  title: {
-    fontSize: 24,
-    color: '#1029AF',
-    fontWeight: '600',
-    marginBottom: 20,
+  formContainer: {
+    backgroundColor: '#003366', // Darker blue background for form
+    padding: 20,
+    borderRadius: 8,
   },
   label: {
     fontSize: 16,
-    color: '#10294F',  
-    marginBottom: 10,
-    alignSelf: 'flex-start',
-    fontWeight: 'bold',
+    color: '#ffffff', // White text for labels
+    marginBottom: 8,
   },
   input: {
-    backgroundColor: '#F0F0F0',
-    borderRadius: 8,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    fontSize: 14,
-    color: '#000000',
-    width: '100%',
-    marginBottom: 20,
-    borderColor: '#CCCCCC',
     borderWidth: 1,
+    borderColor: '#ffffff', // White border
+    padding: 10,
+    marginBottom: 16,
+    borderRadius: 4,
+    backgroundColor: '#002b36', // Dark input background
+    color: '#ffffff', // White text
   },
-  picker: {
-    width: '100%',
-    marginBottom: 20,
-    backgroundColor: '#F0F0F0', 
-    borderRadius: 10, 
-    color: '#0066B0',
+  error: {
+    color: '#ff6f6f', // Error text color
+    marginBottom: 16,
   },
-  courseItem: {
+  checkboxContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginBottom: 16,
+  },
+  checkboxWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 10,
-    width: '100%',
-    paddingVertical: 10,
+    marginRight: 16,
+  },
+  checkboxText: {
+    color: '#ffffff', // White text
+    marginLeft: 8,
+  },
+  picker: {
+    borderWidth: 1,
+    borderColor: '#ffffff', // White border
+    borderRadius: 4,
+    marginBottom: 16,
+    color: '#ffffff', // White text
+    backgroundColor: '#003366', // Darker background
+  },
+  courseContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 8,
     borderBottomWidth: 1,
-    borderBottomColor: '#CCCCCC', 
+    borderBottomColor: '#ffffff', // White border for course list
   },
   courseText: {
     fontSize: 16,
-    marginLeft: 10,
+    color: '#ffffff', // White text for courses
   },
-  noCoursesText: {
-    color: '#A0A0A0',
-    marginBottom: 20,
-  },
-  nextButton: {
-    backgroundColor: '#FF6600',
-    borderRadius: 8,
-    paddingVertical: 15,
-    width: '100%',
+  button: {
+    backgroundColor: '#00509e', // Interactive button color
+    padding: 16,
+    borderRadius: 4,
     alignItems: 'center',
-    marginTop: 20,
   },
-  nextButtonText: {
-    fontSize: 18,
-    color: '#FFFFFF',
+  buttonText: {
+    color: '#ffffff', // White text for button
+    fontSize: 16,
   },
   disabledButton: {
-    backgroundColor: '#CCCCCC',
+    backgroundColor: '#004080', // Darker button when disabled
   },
-  errorText: {
-    color: 'red',
-    alignSelf: 'flex-start',
-    marginBottom: 10,
+  termsContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: 16,
+  },
+  termsText: {
+    fontSize: 14,
+    color: '#ffffff', // White text
+    marginLeft: 8,
+    flex: 1,
+  },
+  termsButton: {
+    marginLeft: 8,
+    backgroundColor: '#004080',
+    padding: 8,
+    borderRadius: 4,
+  },
+  termsButtonText: {
+    color: '#ffffff',
+    fontSize: 14,
   },
 });
 

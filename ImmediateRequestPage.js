@@ -1,41 +1,58 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, Alert, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
+import { View, Text, Alert, StyleSheet, TouchableOpacity } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
 import { Ionicons } from '@expo/vector-icons';
-import { doc, getDoc, updateDoc, query, where, getDocs } from 'firebase/firestore'; // Firestore functions
-import { db } from './firebase'; // Your Firestore setup
+import { getAuth } from 'firebase/auth';
+import { collection, query, where, getDocs, doc, updateDoc, addDoc } from 'firebase/firestore';
+import { db } from './firebase';
 
-const ImmediateRequestPage = ({ navigation, route }) => {
+const ImmediateRequestPage = ({ navigation }) => {
   const [course, setCourse] = useState('');
   const [duration, setDuration] = useState('');
   const [tier, setTier] = useState('');
   const [price, setPrice] = useState(0);
-  const [balance, setBalance] = useState(100); // Default balance if not fetched yet
-  const email = route.params?.email || ''; // Get the user's email from navigation params
+  const [balance, setBalance] = useState(0);
+  const [sessionType, setSessionType] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
-  // Fetch the user's balance from Firestore when the page loads
+  const auth = getAuth();
+  const user = auth.currentUser;
+
   useEffect(() => {
-    const fetchBalance = async () => {
+    const fetchWalletData = async () => {
+      setLoading(true);
+      setError('');
+
+      if (!user) {
+        navigation.navigate('WelcomePage');
+        setLoading(false);
+        return;
+      }
+
       try {
-        // Query the 'students' collection for the document that matches the user's email
-        const q = query(collection(db, 'students'), where('email', '==', email));
+        const email = user.email;
+        const studentsRef = collection(db, 'students');
+        const q = query(studentsRef, where('email', '==', email));
         const querySnapshot = await getDocs(q);
-        
+
         if (!querySnapshot.empty) {
-          const docSnap = querySnapshot.docs[0]; // Get the first matching document
-          const userData = docSnap.data();
-          setBalance(userData.balance || 100); // Set balance from Firestore or default to R100
+          const userDoc = querySnapshot.docs[0];
+          const userData = userDoc.data();
+          setBalance(userData.balance || 0);
         } else {
-          Alert.alert('Error', 'User details not found.');
+          setError('User details not found in Database.');
         }
       } catch (error) {
-        console.error('Error fetching balance:', error);
-        Alert.alert('Error', 'Unable to fetch user balance.');
+        console.error('Error fetching Balance details: ', error);
+        setError('Failed to fetch Balance details from firestore.');
+      } finally {
+        setLoading(false);
       }
     };
 
-    fetchBalance();
-  }, [email]);
+    fetchWalletData();
+  }, [user, navigation]);
 
   const calculatePrice = () => {
     let basePrice = 0;
@@ -57,26 +74,41 @@ const ImmediateRequestPage = ({ navigation, route }) => {
 
   const confirmRequest = async () => {
     if (balance >= price) {
+      setLoading(true);
+
       try {
-        // Query the 'students' collection again to update the document
-        const q = query(collection(db, 'students'), where('email', '==', email));
+        const email = user.email;
+        const studentsRef = collection(db, 'students');
+        const q = query(studentsRef, where('email', '==', email));
         const querySnapshot = await getDocs(q);
-        
+
         if (!querySnapshot.empty) {
-          const docSnap = querySnapshot.docs[0]; // Get the first matching document
-          const docRef = doc(db, 'students', docSnap.id); // Reference to the document
-          
-          const newBalance = balance - price;
-          await updateDoc(docRef, { balance: newBalance }); // Update the balance in Firestore
+          const userDoc = querySnapshot.docs[0];
+          const docRef = userDoc.ref;
+          await updateDoc(docRef, { balance: balance - price });
 
-          setBalance(newBalance); // Update the balance locally
+          await addDoc(collection(db, 'IRequestSessions'), {
+            studentEmail: email,
+            course,
+            duration,
+            tier,
+            price,
+            sessionType,
+            status: 'pending',
+            timestamp: new Date(),
+          });
 
+          setBalance(prevBalance => prevBalance - price);
           Alert.alert('Request Confirmed', `R${price} has been deducted from your wallet.`);
-          navigation.navigate('SearchingScreen'); // Navigate to another screen
+          navigation.navigate('SearchingScreen');
+        } else {
+          setError('User details not found in Database.');
         }
       } catch (error) {
-        console.error('Error updating balance:', error);
-        Alert.alert('Error', 'Unable to update balance.');
+        console.error('Error confirming request:', error);
+        Alert.alert('Error', 'Could not confirm the session request. Please try again.');
+      } finally {
+        setLoading(false);
       }
     } else {
       Alert.alert('Insufficient Funds', 'Please select a lower-tier tutor or refill your funds.');
@@ -84,7 +116,7 @@ const ImmediateRequestPage = ({ navigation, route }) => {
   };
 
   return (
-    <ScrollView style={styles.container}>
+    <View style={styles.container}>
       <TouchableOpacity
         style={styles.backButton}
         onPress={() => navigation.goBack()}
@@ -97,7 +129,7 @@ const ImmediateRequestPage = ({ navigation, route }) => {
       <Picker
         selectedValue={course}
         style={styles.picker}
-        onValueChange={(itemValue) => setCourse(itemValue)}
+        onValueChange={itemValue => setCourse(itemValue)}
       >
         <Picker.Item label="Select Your Course" value="" />
         <Picker.Item label="CSC3002F" value="CSC3002F" />
@@ -110,35 +142,39 @@ const ImmediateRequestPage = ({ navigation, route }) => {
       <Picker
         selectedValue={duration}
         style={styles.picker}
-        onValueChange={(itemValue) => setDuration(parseFloat(itemValue))}
+        onValueChange={itemValue => setDuration(parseFloat(itemValue))}
       >
         <Picker.Item label="Select Duration (in hours)" value="" />
         <Picker.Item label="0.5 hr" value="0.5" />
         <Picker.Item label="1 hr" value="1" />
         <Picker.Item label="1.5 hr" value="1.5" />
         <Picker.Item label="2 hr" value="2" />
-        <Picker.Item label="2.5 hr" value="2.5" />
-        <Picker.Item label="3 hr" value="3" />
-        <Picker.Item label="3.5 hr" value="3.5" />
-        <Picker.Item label="4 hr" value="4" />
-        <Picker.Item label="4.5 hr" value="4.5" />
-        <Picker.Item label="5 hr" value="5" />
       </Picker>
 
       <Picker
         selectedValue={tier}
         style={styles.picker}
-        onValueChange={(itemValue) => setTier(itemValue)}
+        onValueChange={itemValue => setTier(itemValue)}
       >
         <Picker.Item label="Select Tutor Tier" value="" />
+        <Picker.Item label="1st Tier" value="1st Tier" />
         <Picker.Item label="2nd Tier" value="2nd Tier" />
         <Picker.Item label="3rd Tier" value="3rd Tier" />
+      </Picker>
+
+      <Picker
+        selectedValue={sessionType}
+        style={styles.picker}
+        onValueChange={itemValue => setSessionType(itemValue)}
+      >
+        <Picker.Item label="Select Session Type" value="" />
+        <Picker.Item label="Online" value="Online" />
+        <Picker.Item label="In-person" value="In-person" />
       </Picker>
 
       <TouchableOpacity style={styles.calculateButton} onPress={calculatePrice}>
         <Text style={styles.buttonText}>Calculate Price</Text>
       </TouchableOpacity>
-
       <Text style={styles.price}>Price: R{price}</Text>
 
       <TouchableOpacity
@@ -147,7 +183,10 @@ const ImmediateRequestPage = ({ navigation, route }) => {
       >
         <Text style={styles.buttonText}>Confirm Request</Text>
       </TouchableOpacity>
-    </ScrollView>
+
+      {loading && <Text>Loading...</Text>}
+      {error ? <Text style={{ color: 'red' }}>{error}</Text> : null}
+    </View>
   );
 };
 
@@ -163,22 +202,21 @@ const styles = StyleSheet.create({
     left: 20,
   },
   title: {
-    fontSize: 24,
+    fontSize: 26,
     fontWeight: 'bold',
-    marginVertical: 20,
+    marginVertical: 40,
     textAlign: 'center',
   },
   picker: {
-    height: 40,
+    height: 50,
     width: '100%',
-    marginBottom: 20,
+    marginBottom: 15,
     backgroundColor: '#e0e0e0',
     borderRadius: 8,
-    paddingHorizontal: 10,
   },
   calculateButton: {
     backgroundColor: '#ff7043',
-    paddingVertical: 12,
+    paddingVertical: 15,
     borderRadius: 25,
     alignItems: 'center',
     marginTop: 10,
@@ -186,14 +224,14 @@ const styles = StyleSheet.create({
   },
   confirmButton: {
     backgroundColor: '#42a5f5',
-    paddingVertical: 12,
+    paddingVertical: 15,
     borderRadius: 25,
     alignItems: 'center',
     marginTop: 10,
   },
   buttonText: {
     color: '#fff',
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: '600',
   },
   price: {
